@@ -1,0 +1,56 @@
+##
+## Database PostgreSQL docker-compose for fast installation.
+##
+
+version: "3"
+
+networks:
+  pg-net:
+    name: pg-net
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.10.1.0/24
+
+services:
+
+  #######################################################
+  # PgAdmin4: The database management tool for Postgres
+  #######################################################
+  pg-admin:
+    container_name: pg-admin
+    image: dpage/pgadmin4
+    restart: unless-stopped
+    networks:
+      - pg-net
+    environment:
+      PGADMIN_DEFAULT_EMAIL: plenty-italic.0u@icloud.com
+      PGADMIN_DEFAULT_PASSWORD: password12345
+    ports:
+      - "5444:80"
+    command: ["bash", "-c", "sleep 10 && /entrypoint.sh"]  # Wait 10 seconds before starting pgAdmin
+    depends_on:
+      - postgres
+
+  ############################################
+  # Postgres: The database used by Sqlalchemy.
+  ############################################
+  postgres:
+    container_name: postgresql
+    image: postgres:13.4-alpine
+    restart: unless-stopped
+    networks:
+      - pg-net
+    environment:
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpassword
+      POSTGRES_DB: testuser
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "testuser  " ]
+      interval: 30s
+      timeout: 3s
+      retries: 5
+
+

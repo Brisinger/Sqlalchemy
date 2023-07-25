@@ -1,0 +1,7 @@
+# Files to ignore from syncing local changes to github.
+
+.DS_Store
+.env
+src/__pycache__/*
+src/alembic/__pycache__/*
+src/alembic/versions/__pycache__/*

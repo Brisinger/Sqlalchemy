@@ -1,0 +1,28 @@
+# installed libraries and packages
+# create an environment virtually
+# change working directory to one containing this file.
+# run pip install -r requirements.txt command.
+
+
+alembic==1.11.1
+astroid==2.15.6
+asyncpg==0.28.0
+dill==0.3.7
+environs==9.5.0
+greenlet==2.0.2
+isort==5.12.0
+lazy-object-proxy==1.9.0
+Mako==1.2.4
+MarkupSafe==2.1.3
+marshmallow==3.20.1
+mccabe==0.7.0
+packaging==23.1
+platformdirs==3.9.1
+psycopg2==2.9.6
+psycopg2-binary==2.9.3
+pylint==2.17.4
+python-dotenv==1.0.0
+SQLAlchemy==2.0.19
+tomlkit==0.11.8
+typing_extensions==4.7.1
+wrapt==1.15.0
