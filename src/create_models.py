@@ -88,7 +88,8 @@ class User(Base, TimestampMixin, TableNameMixin):
     -----------
         telegram_id (int): Identifier for telegram user.
         full_name (str): User full name.
-        username (str): Username can be null.
+        username (str or optional): Short name of the user.
+        phone_number (str or optional): Phone number of telegram user.
         language_code (str): Language code for user.
         referrer_id (int): refers to telegram user invitee for given telegram user.
     """
@@ -96,6 +97,7 @@ class User(Base, TimestampMixin, TableNameMixin):
     telegram_id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=False)
     full_name: Mapped[str_255]
     user_name: Mapped[Optional[str_255]]
+    phone_number: Mapped[Optional[str]] = mapped_column(type_=VARCHAR(length=50))
     language_code: Mapped[lang]
     referrer_id: Mapped[Optional[int]] = mapped_column(
         BIGINT,
