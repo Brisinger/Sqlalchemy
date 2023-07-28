@@ -28,7 +28,7 @@ with session_pool() as session:
         (
             telegram_id   BIGINT PRIMARY KEY,
             full_name     VARCHAR(255) NOT NULL,
-            username      VARCHAR(255),
+            user_name      VARCHAR(255),
             language_code VARCHAR(255) NOT NULL,
             created_at    TIMESTAMP DEFAULT NOW(),
             referrer_id   BIGINT,
@@ -41,7 +41,7 @@ with session_pool() as session:
     # session.execute(statement=query)
 
     insert_query = text("""
-            INSERT INTO users (telegram_id, full_name, username, language_code, referrer_id)
+            INSERT INTO users (telegram_id, full_name, user_name, language_code, referrer_id)
             VALUES (1, 'John Doe', 'johndoe', 'en', NULL), (2, 'Jane Doe', 'janedoe', 'en', 1);
         """)
     # Add users to user table.
@@ -76,12 +76,12 @@ with session_pool() as session:
     print(f"first result (one row): {result}")
 
     # scalar result
-    filter_query = text("SELECT username FROM users WHERE telegram_id = :telegram_id")
+    filter_query = text("SELECT user_name FROM users WHERE telegram_id = :telegram_id")
     result = session.execute(statement=filter_query, params={"telegram_id": 1}).scalar()
     print(f"scalar result username: {result}")
 
     # scalars result
-    scalars_query = text("SELECT username FROM users")
+    scalars_query = text("SELECT user_name FROM users")
     result = session.execute(statement=scalars_query).scalars()
     print(f"scalars result username column: {result}")
 
@@ -95,9 +95,12 @@ with session_pool() as session:
     print(f"scalar one or none result username: {result}")
 
     # full name of filtered query
-    fullname = session.execute(statement=text("""SELECT full_name FROM users
-                                              WHERE telegram_id = :telegram_id""")
-                                              .params(telegram_id = 1)).fetchone()
+    fullname = session.execute(statement=text(
+                                """SELECT
+                                full_name FROM users
+                                WHERE telegram_id = :telegram_id"""
+                                ).params(telegram_id = 1)
+                        ).fetchone()
     print(f"full name result (one row): {fullname}")
 
     # Commit all the changes to database.
