@@ -3,11 +3,11 @@
 Sending and receiving queries and results to and from sqlalchemy.orm
 respectively by connecting to PostgreSQL Database session.
 """
-from sqlalchemy import insert, select, func
-from sqlalchemy import create_engine, URL, or_
+from sqlalchemy import insert, select, update, delete, func
+from sqlalchemy import create_engine, URL, or_, bindparam
 from sqlalchemy.orm import Session, sessionmaker, aliased
 from sqlalchemy.dialects.postgresql import (
-    insert as insert_combined
+    insert as insert_combined,
 )
 from create_models import User, Order, Product, OrderProduct
 from environs import Env
@@ -75,6 +75,13 @@ class Repo:
             of tuples containing total quantity of products labeled as quantity along with user's
             full name labeled as name from database based on the orders placed by telegram users
             with quantity of product ordered greater than specified amount.
+        set_new_referrer(user_id: int, referred_id: int): Updates user object in database 
+            with referrer_id. Updated user object is commited to database.
+        delete_user_by_id(telegram_id: int): Deletes given telegram user from database.
+        add_user_order(telegram_id: int): Returns the order id of the user order inserted to database.
+        add_products_to_order(order_id: int, products: List[dict]): Bulk inserts list of products 
+            for given order placed by user into orderproduct mapping table.
+            Changes made to orderproduct mapping table is committed to database.
     """
     def __init__(self, session:Session) -> None:
         """initializes databases session
@@ -807,6 +814,114 @@ class Repo:
         # return sequence of fetched rows with aggregate result.
         return result.all()
 
+    def set_new_referrer(self, user_id: int, referred_id: int):
+        """updates given telegram user's referrer id.
+        
+        The user object in database is updated with referrer_id.
+        Updated user object is commited to database.
+
+        Args:
+        -----
+            user_id (int): Identifier for telegram user.
+            referrer_id (int): Identifier for telegram user that referred given user.
+        """
+        # update query changing the order of values and where methods work the same.
+        stmt = (
+            update(table=User)
+            .values(referrer_id=referred_id)
+            .where(User.telegram_id==user_id)
+        )
+
+        # execute update query.
+        self._session.execute(statement=stmt)
+
+        # commit changes to database.
+        self._session.commit()
+
+    def delete_user_by_id(self, telegram_id: int):
+        """Deletes given user from database.
+        
+        The user with given telegram_id is deleted from database.
+        The changes from delete request is committed to database.
+
+
+        Args:
+        -----
+            telegram_id (int): Identifier for telegram user.
+        """
+        # delete query for given user.
+        stmt = (
+            delete(table=User)
+            .where(User.telegram_id==telegram_id)
+        )
+
+        # execute the delete statement.
+        self._session.execute(statement=stmt)
+
+        # commit changes made by delete statement into database.
+        self._session.commit()
+
+    def add_user_order(self, telegram_id: int) -> int:
+        """Adds given user order.
+        
+        The order for given user gets inserted into database.
+        The order added into database is commited to database.
+        The order_id for the given order committed is returned.
+
+
+        Args:
+        -----
+            telegram_id (int): Identifier for telegram user.
+
+        Returns:
+        --------
+            The order id of the user order inserted to database.
+        """
+        # insert order query.
+        stmt = (
+            insert(table=Order)
+            .values(user_id=telegram_id)
+            .returning(Order.order_id)
+        )
+
+        # execute the insert query fetching order id inserted.
+        result = self._session.scalar(statement=stmt)
+
+        # commit changes made by insert for order into database.
+        self._session.commit()
+
+        # return the order id.
+        return result
+
+    def add_products_to_order(self, order_id: int, products: List[dict]):
+        """Bulk inserts list of products for given order placed by user.
+        
+        The list of products are inserted into orderproduct mapping table.
+        Changes made to orderproduct mapping table is committed to database.
+
+
+        Args:
+        -----
+            order_id (int): Primary key depicting orders in database.
+            products (List[dict]): List of dictionary containing product_id 
+                and its quantity for the given order placed by user.
+        """
+        # insert query for bulk insert.
+        bulk_insert_stmt = (
+            insert(table=OrderProduct)
+            .values(
+                order_id=order_id,
+                product_id=bindparam(key='product_id'),
+                quantity=bindparam(key='quantity'),
+            ).returning()
+        )
+
+        # execute bulk insert query passing parameter list of products dictionary.
+        self._session.execute(statement=bulk_insert_stmt, params=products)
+
+        # commit bulk insert of products list of dictionary into database.
+        self._session.commit()
+
 
 if __name__ == "__main__":
     # url connection credentials set from environment file.
@@ -997,6 +1112,51 @@ if __name__ == "__main__":
         for products_count, name in repo.get_count_of_products_greater_than_x_by_user(20_000):
             print(f'Total number of products: {products_count} by {name}')
         print('===========')
+
+        # update the given users referrer.
+        # fetch given user for telegram_id provided.
+        user = repo.get_user_by_id(telegram_id=user_telegram_id)
+
+        # display current user details.
+        print("Current User Details:")
+        print(f"User: {user.full_name} Referrer: {user.referrer_id}")
+        print('===========')
+
+        # update the referrer id for the fetched user.
+        # referred id 5503 to update with
+        referrer_id = 1146
+        repo.set_new_referrer(user_id=user.telegram_id, referred_id=referrer_id)
+
+        # fetch the updated user.
+        user = repo.get_user_by_id(telegram_id=user_telegram_id)
+
+        # display updated user details.
+        print("Updated User Details:")
+        print(f"User: {user.full_name} Referrer: {user.referrer_id}")
+        print('===========')
+
+        # delete given user.
+        repo.delete_user_by_id(telegram_id=user_telegram_id)
+
+        # display user details. 
+        # should be none as it is deleted.
+        user = repo.get_user_by_id(telegram_id=user_telegram_id)
+        print("Check if User is deleted:")
+        print(f"Is user with ID: {user_telegram_id} deleted? {'Yes' if not user else 'No'}")
+        print('===========')
+
+        # add user order.
+        # user placing order.
+        user_telegram_id = 1146
+        order_id = repo.add_user_order(telegram_id=user_telegram_id)
+
+        # bulk insert list of dictionaries containing product_id and its quantity
+        # as the key for orders placed by given telegram user.
+        repo.add_products_to_order(order_id=order_id, products=[
+                                                        {"product_id":1, "quantity":2},
+                                                        {"product_id":2, "quantity":3},
+                                                        {"product_id":3, "quantity":1}
+                                                       ])
 
     # closes session after exiting the context manager.
 
